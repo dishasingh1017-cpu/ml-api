@@ -1,0 +1,53 @@
+from flask import Flask, request, jsonify
+import joblib
+
+app = Flask(__name__)
+
+# load your models
+income_model = joblib.load("income_loss_model.pkl")
+fraud_model = joblib.load("fraud_detection_model.pkl")
+
+@app.route('/')
+def home():
+    return "API is running!"
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.get_json()
+
+        features_income = [
+            data['temperature_c'],
+            data['rainfall_mm'],
+            data['aqi'],
+            data['traffic_level'],
+            data['working_hours'],
+            data['delivery_orders'],
+            data['avg_daily_earnings'],
+            data['historical_disruptions'],
+            data['app_outage'],
+            data['curfew_event']
+        ]
+
+        income_loss = income_model.predict([features_income])[0]
+
+        features_fraud = [
+            data['temperature_c'],
+            data['rainfall_mm'],
+            data['aqi'],
+            data['delivery_orders'],
+            data['working_hours'],
+            data['claim_amount'],
+            income_loss,
+            data['weekly_premium']
+        ]
+
+        fraud = fraud_model.predict([features_fraud])[0]
+
+        return jsonify({
+            "predicted_income_loss": float(income_loss),
+            "fraud_flag": int(fraud)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
